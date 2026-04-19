@@ -1,0 +1,11 @@
+digraph {
+	root [label="Code Analysis"]
+	loc [label="LOC: 28"]
+	loops [label="Loops: 1"]
+	conditions [label="Conditions: 3"]
+	complexity [label="Complexity: 4"]
+	root -> loc
+	root -> loops
+	root -> conditions
+	root -> complexity
+}

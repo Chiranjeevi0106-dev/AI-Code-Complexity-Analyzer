@@ -1,0 +1,9 @@
+LOC,Loops,Conditions,Complexity,Label
+10,1,1,2,Low
+20,2,2,4,Low
+30,3,3,6,Medium
+50,5,6,10,High
+80,8,10,15,High
+15,1,2,3,Low
+40,4,5,8,Medium
+60,6,7,12,High

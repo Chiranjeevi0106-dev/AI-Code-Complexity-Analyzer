@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Code Complexity Analyzer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/static/manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #dbeafe, #eef2ff);
+            margin:0;
+            padding:20px;
+        }
+
+        .container{
+            max-width:1200px;
+            margin:auto;
+        }
+
+        .card{
+            background:white;
+            padding:20px;
+            border-radius:12px;
+            box-shadow:0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom:20px;
+        }
+
+        h1{
+            text-align:center;
+            color:#1e3a8a;
+            margin-bottom: 30px;
+        }
+
+        textarea{
+            width:100%;
+            border:1px solid #ccc;
+            border-radius:8px;
+            padding:12px;
+            font-size:14px;
+            resize:vertical;
+            min-height: 150px;
+        }
+
+        button{
+            background:#2563eb;
+            color:white;
+            border:none;
+            padding:12px 20px;
+            margin:8px 4px 0 0;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:14px;
+            transition: background 0.3s;
+        }
+
+        button:hover{
+            background:#1d4ed8;
+        }
+
+        input[type=file]{
+            margin-top:10px;
+        }
+
+        .result-box{
+            background:#f8fafc;
+            padding:15px;
+            border-radius:8px;
+            margin-top:15px;
+            white-space:pre-wrap;
+            line-height:1.5;
+            font-size:14px;
+        }
+
+        .grid{
+            display:grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap:20px;
+        }
+
+        canvas{
+            background:white;
+            padding:10px;
+            border-radius:8px;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .history-item{
+            background:#f1f5f9;
+            padding:10px;
+            margin:5px 0;
+            border-radius:6px;
+            cursor:pointer;
+        }
+
+        .history-item:hover{
+            background:#e2e8f0;
+        }
+
+        .tabs{
+            display:flex;
+            margin-bottom:20px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+
+        .tab{
+            padding: 12px 24px;
+            background: #f3f4f6;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.3s ease;
+            position: relative;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .tab:last-child {
+            border-right: none;
+        }
+
+        .tab:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .tab.active{
+            background: white;
+            color: #2563eb;
+            font-weight: 600;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+        }
+
+        .tab-content{
+            display:none;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active{
+            display:block;
+        }
+
+        @media(max-width:768px){
+            body{
+                padding:10px;
+            }
+            .card{
+                padding:15px;
+            }
+            .grid{
+                grid-template-columns: 1fr;
+            }
+            .tabs{
+                flex-direction:column;
+            }
+            .tab{
+                border-radius:0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>AI Code Complexity Analyzer</h1>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('analyze')">Analyze</button>
+        <button class="tab" onclick="showTab('history')">History</button>
+        <button class="tab" onclick="showTab('visualize')">Visualize</button>
+    </div>
+
+    <div id="analyze" class="tab-content active">
+        <div class="card">
+            <h3>Paste Code</h3>
+            <textarea id="code" rows="8" placeholder="Paste your code here..."></textarea>
+            <br>
+            <button onclick="analyzeCode()">Analyze Code</button>
+            <button onclick="aiDebug()">AI Debugger</button>
+
+            <hr>
+
+            <h3>Upload File</h3>
+            <input type="file" id="fileInput">
+            <button onclick="uploadFile()">Upload & Analyze</button>
+        </div>
+
+        <div class="card">
+            <h3>Results</h3>
+            <div id="summary" class="result-box">No results yet.</div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <canvas id="barChart" width="350" height="220"></canvas>
+            </div>
+
+            <div class="card">
+                <canvas id="pieChart" width="350" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="history" class="tab-content">
+        <div class="card">
+            <h3>Analysis History</h3>
+            <div id="historyList">Loading...</div>
+        </div>
+    </div>
+
+    <div id="visualize" class="tab-content">
+        <div class="card">
+            <h3>Code Visualizations</h3>
+            <div id="vizContent">Select an analysis from history to visualize.</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+let barChart;
+let pieChart;
+let socket;
+let currentAnalysisId = null;
+
+// Initialize SocketIO
+socket = io();
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js')
+        .then(reg => console.log('SW registered'))
+        .catch(err => console.log('SW registration failed'));
+}
+
+// Tab switching
+function showTab(tabName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`button[onclick="showTab('${tabName}')"]`).classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+    
+    if (tabName === 'history') loadHistory();
+}
+
+// Real-time analysis
+document.getElementById('code').addEventListener('input', function() {
+    const code = this.value;
+    if (code.length > 10) {  // Only analyze if substantial code
+        socket.emit('analyze_code', {code: code});
+    }
+});
+
+socket.on('analysis_result', function(data) {
+    showCharts(data);
+    if (data.analysis_id) currentAnalysisId = data.analysis_id;
+});
+
+// ----------------------
+// Analyze pasted code
+// ----------------------
+function analyzeCode() {
+    const code = document.getElementById('code').value;
+    socket.emit('analyze_code', {code: code});
+}
+
+
+// ----------------------
+// Upload file
+// ----------------------
+function uploadFile() {
+    let file = document.getElementById('fileInput').files[0];
+
+    if(!file){
+        alert("Please select a file first.");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append("file", file);
+
+    fetch('/upload', {
+        method:'POST',
+        body:formData
+    })
+    .then(res => res.json())
+    .then(showCharts);
+}
+
+
+// ----------------------
+// AI Debugger
+// ----------------------
+function aiDebug(){
+    fetch('/ai-debug',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            code:document.getElementById('code').value
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("summary").innerText =
+            data.result;
+    });
+}
+
+
+// ----------------------
+// Show results + charts
+// ----------------------
+function showCharts(data){
+
+    if(data.success === false){
+        document.getElementById("summary").innerText =
+            "Error: " + data.error;
+        return;
+    }
+
+    let text =
+        "Language: " + data.language +
+        "\nComplexity Level: " + data.complexity;
+
+    if(data.filename){
+        text =
+        "File: " + data.filename +
+        "\nLanguage: " + data.language +
+        "\nComplexity Level: " + data.complexity;
+    }
+
+    if(data.suggestions){
+        text += "\n\nSuggestions:\n- " +
+        data.suggestions.join("\n- ");
+    }
+
+    if(data.ai_debugger){
+        text += "\n\nAI Debugger:\n" + data.ai_debugger;
+    }
+
+    document.getElementById("summary").innerText = text;
+
+    // Add action buttons
+    if (data.analysis_id) {
+        document.getElementById("summary").innerHTML += 
+            `<br><br><button onclick="visualizeAnalysis()">Visualize</button> 
+             <button onclick="exportPDF()">Export PDF</button>`;
+    }
+
+
+    let values = [
+        data.features.LOC,
+        data.features.Loops,
+        data.features.Conditions,
+        data.features["Cyclomatic Complexity"]
+    ];
+
+    let labels = [
+        "LOC",
+        "Loops",
+        "Conditions",
+        "Cyclomatic"
+    ];
+
+    if(barChart) barChart.destroy();
+    if(pieChart) pieChart.destroy();
+
+
+    // Bar Chart
+    barChart = new Chart(document.getElementById('barChart'), {
+        type:'bar',
+        data:{
+            labels:labels,
+            datasets:[{
+                label:'Code Metrics',
+                data:values
+            }]
+        },
+        options:{
+            responsive:false
+        }
+    });
+
+
+    // Pie Chart
+    pieChart = new Chart(document.getElementById('pieChart'), {
+        type:'pie',
+        data:{
+            labels:labels,
+            datasets:[{
+                data:values
+            }]
+        },
+        options:{
+            responsive:false
+        }
+    });
+
+}
+
+// ----------------------
+// Load History
+// ----------------------
+function loadHistory() {
+    fetch('/history')
+        .then(res => res.json())
+        .then(data => {
+            const list = document.getElementById('historyList');
+            list.innerHTML = data.map(item => 
+                `<div class="history-item" onclick="loadAnalysis(${item.id})">
+                    <strong>${item.language}</strong> - ${item.complexity} (${new Date(item.timestamp).toLocaleString()})
+                    <br><small>${item.code}</small>
+                </div>`
+            ).join('');
+        });
+}
+
+// ----------------------
+// Load Specific Analysis
+// ----------------------
+function loadAnalysis(id) {
+    fetch(`/history/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            showCharts(data);
+            currentAnalysisId = id;
+            showTab('analyze');
+        });
+}
+
+// ----------------------
+// Visualize Analysis
+// ----------------------
+async function visualizeAnalysis() {
+    if (!currentAnalysisId) {
+        alert('Please analyze some code first');
+        return;
+    }
+    const vizDiv = document.getElementById('vizContent');
+    vizDiv.innerHTML = 'Loading visualization...';
+
+    try {
+        const response = await fetch(`/visualize/${currentAnalysisId}`);
+        const contentType = response.headers.get('content-type');
+
+        if (!response.ok) {
+            const error = await response.json();
+            vizDiv.innerHTML = `<div class="result-box">Visualization error: ${error.error}</div>`;
+            return;
+        }
+
+        if (contentType && contentType.startsWith('image/')) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            vizDiv.innerHTML = `
+                <img src="${url}" alt="AST Visualization" style="max-width:100%">
+                <br><br>
+                <button onclick="exportPDF()">Export as PDF</button>
+            `;
+        } else {
+            const errorText = await response.text();
+            vizDiv.innerHTML = `<div class="result-box">Visualization error: ${errorText}</div>`;
+        }
+    } catch (err) {
+        vizDiv.innerHTML = `<div class="result-box">Visualization error: ${err.message}</div>`;
+    }
+    showTab('visualize');
+}
+
+// ----------------------
+// Export PDF
+// ----------------------
+function exportPDF() {
+    if (!currentAnalysisId) return;
+    window.open(`/export/${currentAnalysisId}`, '_blank');
+}
+
+</script>
+
+</body>
+</html>
+```
