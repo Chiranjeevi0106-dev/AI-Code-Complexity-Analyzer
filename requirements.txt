@@ -21,12 +21,15 @@ h11==0.16.0
 idna==3.11
 itsdangerous==2.2.0
 Jinja2==3.1.6
+lizard==1.21.6
 MarkupSafe==3.0.3
 motor==3.7.1
 packaging==26.1
+pathspec==1.0.4
 pycparser==3.0
 pydantic==2.12.5
 pydantic_core==2.41.5
+Pygments==2.20.0
 PyJWT==2.12.1
 pymongo==4.16.0
 python-engineio==4.13.1
